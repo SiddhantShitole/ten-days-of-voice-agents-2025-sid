@@ -1,0 +1,17 @@
+{
+    "drinkType": "coffee",
+    "size": "small",
+    "milk": "oat",
+    "extras": [
+        "sugar",
+        "whipped cream",
+        "caramel",
+        "extra shot",
+        "vanilla",
+        "cinnamon",
+        "honey"
+    ],
+    "name": "Donald Trump",
+    "timestamp": "2025-11-23T14:40:41.864126",
+    "session_id": "session_20251123_144041"
+}
