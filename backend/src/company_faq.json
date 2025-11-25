@@ -1,0 +1,26 @@
+[
+  {
+    "question": "What does Freshworks do?",
+    "answer": "Freshworks builds easy-to-use SaaS products for support, sales, and IT teams including Freshdesk, Freshsales, Freshservice, and more."
+  },
+  {
+    "question": "Do you offer a free trial?",
+    "answer": "Yes. Freshdesk, Freshsales, and Freshservice offer a 14-day free trial with full access."
+  },
+  {
+    "question": "Do you have a free plan?",
+    "answer": "Freshdesk offers a Free plan for small teams with basic ticketing features."
+  },
+  {
+    "question": "What products do you have?",
+    "answer": "Freshworks offers Freshdesk for customer support, Freshsales for CRM and sales automation, and Freshservice for IT Service management."
+  },
+  {
+    "question": "Who uses Freshworks?",
+    "answer": "Freshworks products are used by startups, mid-size companies, and large enterprises across customer support, sales, and IT teams."
+  },
+  {
+    "question": "How much does Freshdesk cost?",
+    "answer": "Freshdesk pricing includes a Free plan, Growth plan, Pro plan, and Enterprise plan. Exact pricing depends on region and edition."
+  }
+]
