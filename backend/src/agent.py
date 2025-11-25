@@ -1,139 +1,175 @@
-import logging
+# ======================================================
+# 🧠 ACTIVE RECALL COACH - TEACH-THE-TUTOR
+# 🎯 Three learning modes: learn, quiz, teach_back
+# ======================================================
 
+import os
+import json
+import asyncio
+from dataclasses import dataclass, field
+from typing import Optional, Literal
 from dotenv import load_dotenv
-from livekit.agents import (
-    Agent,
-    AgentSession,
-    JobContext,
-    JobProcess,
-    MetricsCollectedEvent,
-    RoomInputOptions,
-    WorkerOptions,
-    cli,
-    metrics,
-    tokenize,
-    # function_tool,
-    # RunContext
-)
-from livekit.plugins import murf, silero, google, deepgram, noise_cancellation
-from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
-logger = logging.getLogger("agent")
+from livekit.agents import Agent, AgentSession, RunContext, function_tool, RoomInputOptions
+from livekit.agents import WorkerOptions, cli
+
+# 🔌 Plugins
+from livekit.plugins import murf, silero, noise_cancellation
+from livekit.plugins.turn_detector.multilingual import MultilingualModel
+from livekit.plugins import deepgram, google
 
 load_dotenv(".env.local")
 
+# ======================================================
+# 📚 CONTENT AND CONVERSATION STORAGE
+# ======================================================
 
-class Assistant(Agent):
-    def __init__(self) -> None:
+CONTENT_FILE = os.path.join(os.path.dirname(__file__), "../shared-data/day4_tutor_content.json")
+CONVO_FILE = os.path.join(os.path.dirname(__file__), "../shared-data/day4_conversation.json")
+
+def load_content():
+    try:
+        with open(CONTENT_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"⚠️ Error loading content file: {e}")
+        return []
+
+def save_conversation(data):
+    try:
+        with open(CONVO_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4)
+    except Exception as e:
+        print(f"⚠️ Error saving conversation: {e}")
+
+COURSE_CONTENT = load_content()
+
+# ======================================================
+# 🧠 STATE MANAGEMENT
+# ======================================================
+
+@dataclass
+class TutorState:
+    current_topic_id: Optional[str] = None
+    current_topic_data: Optional[dict] = None
+    mode: Literal["learn", "quiz", "teach_back"] = "learn"
+
+    def set_topic(self, topic_id: str):
+        topic = next((t for t in COURSE_CONTENT if t["id"].lower() == topic_id.lower()), None)
+        if topic:
+            self.current_topic_id = topic_id
+            self.current_topic_data = topic
+            return True
+        return False
+
+@dataclass
+class Userdata:
+    tutor_state: TutorState = field(default_factory=TutorState)
+    agent_session: Optional[AgentSession] = None
+    conversation: list = field(default_factory=list)
+
+# ======================================================
+# 🛠️ TOOLS
+# ======================================================
+
+@function_tool
+async def select_topic(ctx: RunContext[Userdata], topic_id: str) -> str:
+    state = ctx.userdata.tutor_state
+    if state.set_topic(topic_id):
+        msg = f"Topic set to {state.current_topic_data['title']}."
+        ctx.userdata.conversation.append({"action": "select_topic", "topic": topic_id})
+        save_conversation(ctx.userdata.conversation)
+        return msg + " Which mode do you want: learn, quiz, or teach_back?"
+    else:
+        available = ", ".join([t["id"] for t in COURSE_CONTENT])
+        return f"Topic not found. Available topics: {available}"
+
+@function_tool
+async def set_mode(ctx: RunContext[Userdata], mode: str) -> str:
+    mode = mode.lower()
+    state = ctx.userdata.tutor_state
+    state.mode = mode
+
+    session = ctx.userdata.agent_session
+    if session:
+        if mode == "learn":
+            session.tts.update_options(voice="en-US-matthew", style="Promo")
+            text = f"Let's learn about {state.current_topic_data['title']}: {state.current_topic_data['summary']}"
+        elif mode == "quiz":
+            session.tts.update_options(voice="en-US-alicia", style="Conversational")
+            text = f"Quiz time! {state.current_topic_data['sample_question']}"
+        elif mode == "teach_back":
+            session.tts.update_options(voice="en-US-ken", style="Promo")
+            text = f"Teach it back! Explain {state.current_topic_data['title']} to me."
+        else:
+            return "Invalid mode. Choose learn, quiz, or teach_back."
+    else:
+        text = "Agent session not initialized."
+
+    ctx.userdata.conversation.append({"action": "set_mode", "mode": mode, "text": text})
+    save_conversation(ctx.userdata.conversation)
+    return text
+
+@function_tool
+async def evaluate_teach_back(ctx: RunContext[Userdata], user_response: str) -> str:
+    state = ctx.userdata.tutor_state
+    correct = state.current_topic_data.get("correct_answer", "").lower()
+    score = 10 if user_response.strip().lower() == correct else 5
+    feedback = f"Your explanation got a score of {score}/10."
+    ctx.userdata.conversation.append({"action": "teach_back", "user": user_response, "feedback": feedback})
+    save_conversation(ctx.userdata.conversation)
+    return feedback
+
+# ======================================================
+# 🧠 AGENT DEFINITION
+# ======================================================
+
+class TutorAgent(Agent):
+    def __init__(self):
+        topic_list = ", ".join([f"{t['id']} ({t['title']})" for t in COURSE_CONTENT])
         super().__init__(
-            instructions="""You are a helpful voice AI assistant. The user is interacting with you via voice, even if you perceive the conversation as text.
-            You eagerly assist users with their questions by providing information from your extensive knowledge.
-            Your responses are concise, to the point, and without any complex formatting or punctuation including emojis, asterisks, or other symbols.
-            You are curious, friendly, and have a sense of humor.""",
+            instructions=f"""
+            You are an Active Recall Coach. Topics: {topic_list}.
+            Modes:
+            - learn: explain the topic (Matthew)
+            - quiz: ask the sample question (Alicia)
+            - teach_back: ask user to explain topic (Ken)
+            """,
+            tools=[select_topic, set_mode, evaluate_teach_back],
         )
 
-    # To add tools, use the @function_tool decorator.
-    # Here's an example that adds a simple weather tool.
-    # You also have to add `from livekit.agents import function_tool, RunContext` to the top of this file
-    # @function_tool
-    # async def lookup_weather(self, context: RunContext, location: str):
-    #     """Use this tool to look up current weather information in the given location.
-    #
-    #     If the location is not supported by the weather service, the tool will indicate this. You must tell the user the location's weather is unavailable.
-    #
-    #     Args:
-    #         location: The location to look up weather information for (e.g. city name)
-    #     """
-    #
-    #     logger.info(f"Looking up weather for {location}")
-    #
-    #     return "sunny with a temperature of 70 degrees."
+# ======================================================
+# 🎬 PREWARM AND ENTRYPOINT
+# ======================================================
 
-
-def prewarm(proc: JobProcess):
+def prewarm(proc):
     proc.userdata["vad"] = silero.VAD.load()
 
+async def entrypoint(ctx):
+    userdata = Userdata()
 
-async def entrypoint(ctx: JobContext):
-    # Logging setup
-    # Add any other context you want in all log entries here
-    ctx.log_context_fields = {
-        "room": ctx.room.name,
-    }
-
-    # Set up a voice AI pipeline using OpenAI, Cartesia, AssemblyAI, and the LiveKit turn detector
     session = AgentSession(
-        # Speech-to-text (STT) is your agent's ears, turning the user's speech into text that the LLM can understand
-        # See all available models at https://docs.livekit.io/agents/models/stt/
         stt=deepgram.STT(model="nova-3"),
-        # A Large Language Model (LLM) is your agent's brain, processing user input and generating a response
-        # See all available models at https://docs.livekit.io/agents/models/llm/
-        llm=google.LLM(
-                model="gemini-2.5-flash",
-            ),
-        # Text-to-speech (TTS) is your agent's voice, turning the LLM's text into speech that the user can hear
-        # See all available models as well as voice selections at https://docs.livekit.io/agents/models/tts/
-        tts=murf.TTS(
-                voice="en-US-matthew", 
-                style="Conversation",
-                tokenizer=tokenize.basic.SentenceTokenizer(min_sentence_len=2),
-                text_pacing=True
-            ),
-        # VAD and turn detection are used to determine when the user is speaking and when the agent should respond
-        # See more at https://docs.livekit.io/agents/build/turns
+        llm=google.LLM(model="gemini-2.5-flash"),
+        tts=murf.TTS(voice="en-US-matthew", style="Promo", text_pacing=True),
         turn_detection=MultilingualModel(),
-        vad=ctx.proc.userdata["vad"],
-        # allow the LLM to generate a response while waiting for the end of turn
-        # See more at https://docs.livekit.io/agents/build/audio/#preemptive-generation
-        preemptive_generation=True,
+        vad=ctx.proc.userdata.get("vad"),
+        userdata=userdata,
     )
 
-    # To use a realtime model instead of a voice pipeline, use the following session setup instead.
-    # (Note: This is for the OpenAI Realtime API. For other providers, see https://docs.livekit.io/agents/models/realtime/))
-    # 1. Install livekit-agents[openai]
-    # 2. Set OPENAI_API_KEY in .env.local
-    # 3. Add `from livekit.plugins import openai` to the top of this file
-    # 4. Use the following session setup instead of the version above
-    # session = AgentSession(
-    #     llm=openai.realtime.RealtimeModel(voice="marin")
-    # )
+    userdata.agent_session = session
 
-    # Metrics collection, to measure pipeline performance
-    # For more information, see https://docs.livekit.io/agents/build/metrics/
-    usage_collector = metrics.UsageCollector()
-
-    @session.on("metrics_collected")
-    def _on_metrics_collected(ev: MetricsCollectedEvent):
-        metrics.log_metrics(ev.metrics)
-        usage_collector.collect(ev.metrics)
-
-    async def log_usage():
-        summary = usage_collector.get_summary()
-        logger.info(f"Usage: {summary}")
-
-    ctx.add_shutdown_callback(log_usage)
-
-    # # Add a virtual avatar to the session, if desired
-    # # For other providers, see https://docs.livekit.io/agents/models/avatar/
-    # avatar = hedra.AvatarSession(
-    #   avatar_id="...",  # See https://docs.livekit.io/agents/models/avatar/plugins/hedra
-    # )
-    # # Start the avatar and wait for it to join
-    # await avatar.start(session, room=ctx.room)
-
-    # Start the session, which initializes the voice pipeline and warms up the models
     await session.start(
-        agent=Assistant(),
+        agent=TutorAgent(),
         room=ctx.room,
-        room_input_options=RoomInputOptions(
-            # For telephony applications, use `BVCTelephony` for best results
-            noise_cancellation=noise_cancellation.BVC(),
-        ),
+        room_input_options=RoomInputOptions(noise_cancellation=noise_cancellation.BVC()),
     )
 
-    # Join the room and connect to the user
     await ctx.connect()
 
+# ======================================================
+# 🏁 MAIN
+# ======================================================
 
 if __name__ == "__main__":
     cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint, prewarm_fnc=prewarm))

@@ -1,0 +1,16 @@
+[
+    {
+        "action": "select_topic",
+        "topic": "planets"
+    },
+    {
+        "action": "set_mode",
+        "mode": "learn",
+        "text": "Let's learn about Planets: Planets are celestial bodies orbiting stars, like Earth or Jupiter."
+    },
+    {
+        "action": "set_mode",
+        "mode": "quiz",
+        "text": "Quiz time! What distinguishes a planet from a star?"
+    }
+]

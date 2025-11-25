@@ -1,0 +1,72 @@
+[
+  {
+    "id": "stars",
+    "title": "Stars",
+    "summary": "Stars are massive luminous spheres of plasma held together by gravity.",
+    "sample_question": "What is the primary process that powers a star?",
+    "correct_answer": "fusion"
+  },
+  {
+    "id": "planets",
+    "title": "Planets",
+    "summary": "Planets are celestial bodies orbiting stars, like Earth or Jupiter.",
+    "sample_question": "What distinguishes a planet from a star?",
+    "correct_answer": "does not produce light"
+  },
+  {
+    "id": "galaxies",
+    "title": "Galaxies",
+    "summary": "Galaxies are massive systems of stars, gas, dust, and dark matter.",
+    "sample_question": "Name the galaxy we live in.",
+    "correct_answer": "milky way"
+  },
+  {
+    "id": "black_holes",
+    "title": "Black Holes",
+    "summary": "Black holes are regions of spacetime with gravity so strong that nothing can escape.",
+    "sample_question": "What happens to matter that crosses the event horizon?",
+    "correct_answer": "gets pulled in"
+  },
+  {
+    "id": "nebulae",
+    "title": "Nebulae",
+    "summary": "Nebulae are clouds of gas and dust in space, often forming new stars.",
+    "sample_question": "What is a nebula primarily made of?",
+    "correct_answer": "gas and dust"
+  },
+  {
+    "id": "pulsars",
+    "title": "Pulsars",
+    "summary": "Pulsars are highly magnetized, rotating neutron stars that emit beams of radiation.",
+    "sample_question": "What is a pulsar?",
+    "correct_answer": "rotating neutron star"
+  },
+  {
+    "id": "quasars",
+    "title": "Quasars",
+    "summary": "Quasars are extremely luminous active galactic nuclei powered by supermassive black holes.",
+    "sample_question": "What powers a quasar's brightness?",
+    "correct_answer": "supermassive black hole"
+  },
+  {
+    "id": "comets",
+    "title": "Comets",
+    "summary": "Comets are icy bodies that release gas and dust when approaching the Sun.",
+    "sample_question": "What forms a comet's tail?",
+    "correct_answer": "gas and dust"
+  },
+  {
+    "id": "asteroids",
+    "title": "Asteroids",
+    "summary": "Asteroids are small rocky bodies orbiting the Sun, mainly in the asteroid belt.",
+    "sample_question": "Where are most asteroids located?",
+    "correct_answer": "asteroid belt"
+  },
+  {
+    "id": "meteorites",
+    "title": "Meteorites",
+    "summary": "Meteorites are fragments of meteoroids that survive passing through Earth's atmosphere.",
+    "sample_question": "What is a meteorite?",
+    "correct_answer": "space rock that reaches earth"
+  }
+]
